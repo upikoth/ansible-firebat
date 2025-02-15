@@ -55,11 +55,18 @@
       args:
         chdir: /etc/openvpn/easy-rsa
 
+    - name: Проверяем что ca.crt существует
+      stat:
+        path: /etc/openvpn/ca.crt
+      register: ca_crt
+
     - name: Копирование файлов в директорию OpenVPN
       shell: |
         cp /etc/openvpn/easy-rsa/pki/ca.crt /etc/openvpn/
+        cp /etc/openvpn/easy-rsa/pki/private/ca.key /etc/openvpn/
         cp /etc/openvpn/easy-rsa/pki/private/server.key /etc/openvpn/
         cp /etc/openvpn/easy-rsa/pki/issued/server.crt /etc/openvpn/
+      when: not ca_crt.stat.exists
 
     - name: Настроить dnsmasq
       copy:
