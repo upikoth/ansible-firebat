@@ -1,18 +1,21 @@
 - name: Установка OpenVPN и локального DNS
   hosts: openvpn_server
-  become: yes
+  become: true
   tasks:
-    - name: Установить необходимые пакеты
-      apt:
+    - name: Обновить менеджер пакетов apt
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Установить необходимые пакеты для OpenVPN, DNS, создания ключей подключения в VPN
+      ansible.builtin.apt:
         name:
           - openvpn
           - easy-rsa
           - dnsmasq
         state: present
-        update_cache: yes
 
     - name: Создать каталог для ключей
-      file:
+      ansible.builtin.file:
         path: /etc/openvpn/easy-rsa
         state: directory
         owner: root
@@ -20,13 +23,13 @@
         mode: "0755"
 
     - name: Копировать файлы Easy-RSA
-      copy:
+      ansible.builtin.copy:
         src: /usr/share/easy-rsa/
         dest: /etc/openvpn/easy-rsa
         remote_src: yes
 
     - name: Создать vars файл
-      copy:
+      ansible.builtin.copy:
         dest: /etc/openvpn/easy-rsa/vars
         content: |
           set_var EASYRSA_ALGO "ec"
@@ -41,35 +44,37 @@
           set_var EASYRSA_BATCH "1"
 
     - name: Инициализация PKI
-      command: /etc/openvpn/easy-rsa/easyrsa init-pki
+      ansible.builtin.command: /etc/openvpn/easy-rsa/easyrsa init-pki
       args:
         chdir: /etc/openvpn/easy-rsa
 
     - name: Создание CA
-      command: /etc/openvpn/easy-rsa/easyrsa build-ca nopass
+      ansible.builtin.command: /etc/openvpn/easy-rsa/easyrsa build-ca nopass
       args:
         chdir: /etc/openvpn/easy-rsa
 
     - name: Генерация серверного ключа и сертификата
-      command: /etc/openvpn/easy-rsa/easyrsa build-server-full server nopass
+      ansible.builtin.command: /etc/openvpn/easy-rsa/easyrsa build-server-full server nopass
       args:
         chdir: /etc/openvpn/easy-rsa
 
-    - name: Проверяем что ca.crt существует
-      stat:
+    - name: Получаем информацию по файлу /etc/openvpn/ca.crt
+      ansible.builtin.stat:
         path: /etc/openvpn/ca.crt
-      register: ca_crt
+      register: vpn_certificate
 
-    - name: Копирование файлов в директорию OpenVPN
+    - name: |
+       Копирование файлов в директорию OpenVPN, только когда сертификаты не были уже выпущены,
+        чтобы не обновить сертификаты при повторном запуске скрипта
       shell: |
         cp /etc/openvpn/easy-rsa/pki/ca.crt /etc/openvpn/
         cp /etc/openvpn/easy-rsa/pki/private/ca.key /etc/openvpn/
         cp /etc/openvpn/easy-rsa/pki/private/server.key /etc/openvpn/
         cp /etc/openvpn/easy-rsa/pki/issued/server.crt /etc/openvpn/
-      when: not ca_crt.stat.exists
+      when: not vpn_certificate.stat.exists
 
     - name: Настроить dnsmasq
-      copy:
+      ansible.builtin.copy:
         dest: /etc/dnsmasq.conf
         content: |
           listen-address=10.8.0.1
@@ -82,8 +87,8 @@
           server=8.8.8.8
           server=8.8.4.4
 
-    - name: Копировать конфигурацию сервера OpenVPN
-      copy:
+    - name: Настроить конфигурацию сервера OpenVPN
+      ansible.builtin.copy:
         dest: /etc/openvpn/server.conf
         content: |
           port 1194
@@ -107,56 +112,62 @@
           data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305
           auth SHA256
 
+    - name: Получаем информацию по файлу /etc/openvpn/dh2048.pem
+      ansible.builtin.stat:
+        path: /etc/openvpn/dh2048.pem
+      register: dh_file
+
     - name: Создание DH файла
-      command:
+      ansible.builtin.command:
         cmd: "openssl dhparam -out /etc/openvpn/dh2048.pem 2048"
         creates: /etc/openvpn/dh2048.pem
+      when: not dh_file.stat.exists
 
     - name: Разрешить переадресацию пакетов
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/sysctl.conf
         line: "net.ipv4.ip_forward = 1"
         state: present
 
     - name: Применить изменения sysctl
-      command: sysctl -p
+      ansible.builtin.command: sysctl -p
 
     - name: Настроить iptables
-      iptables:
+      ansible.builtin.iptables:
         table: nat
         chain: POSTROUTING
         jump: MASQUERADE
         out_interface: eth0
         source: 10.8.0.0/24
       notify:
-        - Save iptables
+        - save_iptables
 
     - name: Выключить systemd-resolved, чтобы освободить 53 порт для dnsmasq
-      systemd:
+      ansible.builtin.systemd:
         name: systemd-resolved
         state: stopped
         enabled: no
 
     - name: Указать dnsmasq в качестве dns на сервере
-      copy:
+      ansible.builtin.copy:
         dest: /etc/resolv.conf
         content: |
           nameserver 10.8.0.1
           options edns0 trust-ad
           search .
 
-    - name: Запустить OpenVPN
-      systemd:
+    - name: Перезапустить OpenVPN
+      ansible.builtin.systemd:
         name: openvpn@server
-        state: started
+        state: restarted
         enabled: yes
 
     - name: Перезапустить dnsmasq
-      systemd:
+      ansible.builtin.systemd:
         name: dnsmasq
         state: restarted
         enabled: yes
 
   handlers:
-    - name: Save iptables
-      command: iptables-save > /etc/iptables/rules.v4
+    - name: save_iptables
+      ansible.builtin.command: iptables-save > /etc/iptables/rules.v4
