@@ -3,7 +3,7 @@
   become: true
   tasks:
     - name: Проверка что переменная с именем пользователя передана
-      fail:
+      ansible.builtin.fail:
         msg: "Переменная 'client_name' не была передана через extra-vars"
       when: client_name is not defined
 

@@ -43,6 +43,15 @@
       ansible.builtin.debug:
         msg: "K3s version: {{ k3s_version.stdout }}"
 
+    - name: |
+        Устанавливаем переменную окружения KUBECONFIG, чтобы программы которые работают с k3s работали корректно
+        Например, так как нестандартный хост и порт у k3s, то helm не работает, так как обращается к стандартным
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        line: 'KUBECONFIG="/etc/rancher/k3s/k3s.yaml"'
+        create: yes
+        state: present
+
     - name: Получаем информацию по файлу /usr/local/bin/helm
       ansible.builtin.stat:
         path: /usr/local/bin/helm
@@ -63,6 +72,37 @@
     - name: Выводим версию helm
       debug:
         msg: "Helm version: {{ helm_version.stdout }}"
+
+    - name: Проверка, установлен ли Argo CD
+      ansible.builtin.shell: |
+        helm status argocd -n argocd
+      register: argocd_check
+      ignore_errors: yes
+
+    - name: Добавление репозитория Argo CD
+      ansible.builtin.shell: |
+        helm repo add argo https://argoproj.github.io/argo-helm
+
+    - name: Обновление репозиториев Helm
+      ansible.builtin.shell: |
+        helm repo update
+
+    - name: Установка Argo CD
+      ansible.builtin.shell: |
+        helm install argocd argo/argo-cd --namespace argocd --create-namespace
+      when: argocd_check.rc != 0
+
+    - name: Проверка, установлен ли ArgoCD CLI
+      ansible.builtin.command: argocd
+      register: argocdcli_check
+      ignore_errors: yes
+
+    - name: Загрузка и установка ArgoCD CLI
+      ansible.builtin.shell: |
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+        rm argocd-linux-amd64
+      when: argocdcli_check.rc != 0
 
   handlers:
     - name: restart_k3s
