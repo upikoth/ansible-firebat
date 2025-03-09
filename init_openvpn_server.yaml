@@ -79,11 +79,10 @@
         content: |
           listen-address=10.8.0.1
           interface=tun0
-          domain=myvpn.local
+          domain=upikoth.dev
           expand-hosts
-          local=/myvpn.local/
-          address=/server.myvpn.local/10.8.0.1
-          address=/upikoth.myvpn.local/10.8.0.2
+          local=/upikoth.dev/
+          address=/argocd.upikoth.dev/10.8.0.1
           server=8.8.8.8
           server=8.8.4.4
 
@@ -107,7 +106,7 @@
           status /var/log/openvpn-status.log
           verb 5
           push "dhcp-option DNS 10.8.0.1"
-          push "dhcp-option DOMAIN myvpn.local"
+          push "dhcp-option DOMAIN upikoth.dev"
           log /var/log/openvpn.log
           data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305
           auth SHA256

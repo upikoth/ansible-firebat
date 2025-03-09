@@ -17,3 +17,27 @@ ansible-playbook -i inventory.yaml create_openvpn_client_config.yaml --ask-becom
 ```shell
 ansible-playbook -i inventory.yaml init_k3s_master.yaml --ask-become-pass
 ```
+
+После установки argocd:
+
+```shell
+# получаем начальный пароль для того, чтобы залогиниться в argocd
+argocd admin initial-password -n argocd
+
+kubectl get svc
+
+git clone https://github.com/upikoth/argocd-firebat.git
+cd argocd-firebat
+
+kubectl apply -f applicationset.yaml
+```
+
+```shell
+# как получить сертификат (можно просто из браузера взять значение)
+# после получения нужно запустить файл cert.crt, добавить в систему, разрешить все
+kubectl get secret argocd-certificate -n argocd -o jsonpath="{.data.tls\.crt}" | base64 --decode > cert.crt
+```
+
+## TODO
+
+- убрать ручные действия настройки argocd
