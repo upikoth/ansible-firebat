@@ -83,6 +83,7 @@
           expand-hosts
           local=/upikoth.dev/
           address=/argocd.upikoth.dev/10.8.0.1
+          address=/grafana.upikoth.dev/10.8.0.1
           server=8.8.8.8
           server=8.8.4.4
 
