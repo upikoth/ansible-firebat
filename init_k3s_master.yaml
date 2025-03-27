@@ -79,9 +79,19 @@
       register: argocd_check
       ignore_errors: yes
 
+    - name: Проверка, установлен ли Grafana operator (для dashboards)
+      ansible.builtin.shell: |
+        helm status grafana-operator -n grafana-operator
+      register: grafana_operator_check
+      ignore_errors: yes
+
     - name: Добавление репозитория Argo CD
       ansible.builtin.shell: |
         helm repo add argo https://argoproj.github.io/argo-helm
+
+    - name: Добавление репозитория Grafana operator
+      ansible.builtin.shell: |
+        helm repo add grafana-operator https://grafana.github.io/helm-charts
 
     - name: Обновление репозиториев Helm
       ansible.builtin.shell: |
@@ -91,6 +101,11 @@
       ansible.builtin.shell: |
         helm install argocd argo/argo-cd --namespace argocd --create-namespace
       when: argocd_check.rc != 0
+
+    - name: Установка Grafana operator
+      ansible.builtin.shell: |
+        helm install grafana-operator grafana-operator/grafana-operator --namespace grafana-operator --create-namespace
+      when: grafana_operator_check.rc != 0
 
     - name: Проверка, установлен ли ArgoCD CLI
       ansible.builtin.command: argocd
