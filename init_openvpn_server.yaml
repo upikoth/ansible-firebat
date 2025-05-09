@@ -39,7 +39,7 @@
           set_var EASYRSA_REQ_PROVINCE "Moscow"
           set_var EASYRSA_REQ_CITY "Moscow"
           set_var EASYRSA_REQ_ORG "MyVPN"
-          set_var EASYRSA_REQ_EMAIL "ikpolux@mail.ru"
+          set_var EASYRSA_REQ_EMAIL "{{ user_email }}"
           set_var EASYRSA_REQ_OU "IT"
           set_var EASYRSA_BATCH "1"
 
@@ -77,37 +77,38 @@
       ansible.builtin.copy:
         dest: /etc/dnsmasq.conf
         content: |
-          listen-address=10.8.0.1
+          listen-address={{ vpn_server_ip }}
           interface=tun0
-          domain=upikoth.dev
+          domain={{ dns_domain }}
           expand-hosts
-          local=/upikoth.dev/
-          address=/argocd.upikoth.dev/10.8.0.1
-          address=/grafana.upikoth.dev/10.8.0.1
-          server=8.8.8.8
-          server=8.8.4.4
+          local=/{{ dns_domain }}/
+          address=/argocd.{{ dns_domain }}/{{ vpn_server_ip }}
+          address=/grafana.{{ dns_domain }}/{{ vpn_server_ip }}
+          {% for server in dns_servers %}
+          server={{ server }}
+          {% endfor %}
 
     - name: Настроить конфигурацию сервера OpenVPN
       ansible.builtin.copy:
         dest: /etc/openvpn/server.conf
         content: |
-          port 1194
-          proto udp
+          port {{ vpn_port }}
+          proto {{ vpn_proto }}
           dev tun
           ca /etc/openvpn/ca.crt
           cert /etc/openvpn/server.crt
           key /etc/openvpn/server.key
           dh /etc/openvpn/dh2048.pem
           topology subnet
-          server 10.8.0.0 255.255.255.0
+          server {{ vpn_network }} {{ vpn_netmask }}
           ifconfig-pool-persist /var/log/openvpn/ipp.txt
           keepalive 10 120
           persist-key
           persist-tun
           status /var/log/openvpn-status.log
           verb 5
-          push "dhcp-option DNS 10.8.0.1"
-          push "dhcp-option DOMAIN upikoth.dev"
+          push "dhcp-option DNS {{ vpn_server_ip }}"
+          push "dhcp-option DOMAIN {{ dns_domain }}"
           log /var/log/openvpn.log
           data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305
           auth SHA256
@@ -138,7 +139,7 @@
         chain: POSTROUTING
         jump: MASQUERADE
         out_interface: eth0
-        source: 10.8.0.0/24
+        source: "{{ vpn_network }}/24"
       notify:
         - save_iptables
 
@@ -152,7 +153,7 @@
       ansible.builtin.copy:
         dest: /etc/resolv.conf
         content: |
-          nameserver 10.8.0.1
+          nameserver {{ vpn_server_ip }}
           options edns0 trust-ad
           search .
 

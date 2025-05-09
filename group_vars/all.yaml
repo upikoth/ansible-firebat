@@ -1,0 +1,36 @@
+# Информация о пользователе
+user_name: "upikoth"
+user_email: "ikpolux@mail.ru"
+user_domain: "upikoth.dev"
+
+# Общие настройки сети
+vpn_network: "10.8.0.0"
+vpn_netmask: "255.255.255.0"
+vpn_server_ip: "10.8.0.1"
+vpn_port: 1194
+vpn_proto: "udp"
+
+# Настройки DNS
+dns_domain: "{{ user_domain }}"
+dns_servers:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# Настройки сертификатов
+cert_email: "{{ user_email }}"
+
+# Настройки K3s
+k3s_https_port: 6443
+k3s_bind_address: "{{ vpn_server_ip }}"
+k3s_advertise_address: "{{ vpn_server_ip }}"
+k3s_node_ip: "{{ vpn_server_ip }}"
+
+# Настройки ArgoCD
+argocd_namespace: "argocd"
+argocd_helm_repo: "argo"
+argocd_helm_chart: "argo/argo-cd"
+
+# Настройки Grafana
+grafana_operator_namespace: "grafana-operator"
+grafana_operator_helm_repo: "grafana-operator"
+grafana_operator_helm_chart: "grafana-operator/grafana-operator"
