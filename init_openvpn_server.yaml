@@ -64,8 +64,8 @@
       register: vpn_certificate
 
     - name: |
-       Копирование файлов в директорию OpenVPN, только когда сертификаты не были уже выпущены,
-        чтобы не обновить сертификаты при повторном запуске скрипта
+        Копирование файлов в директорию OpenVPN, только когда сертификаты не были уже выпущены,
+         чтобы не обновить сертификаты при повторном запуске скрипта
       shell: |
         cp /etc/openvpn/easy-rsa/pki/ca.crt /etc/openvpn/
         cp /etc/openvpn/easy-rsa/pki/private/ca.key /etc/openvpn/

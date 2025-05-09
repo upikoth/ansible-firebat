@@ -30,7 +30,7 @@
         content: |
           [Service]
           ExecStart=
-          ExecStart=/usr/local/bin/k3s server --https-listen-port 6443 --bind-address 10.8.0.1 --advertise-address 10.8.0.1 --node-ip 10.8.0.1
+          ExecStart=/usr/local/bin/k3s server --https-listen-port 6443 --bind-address 10.8.0.1 --advertise-address 10.8.0.1 --node-ip 10.8.0.1 --kubelet-arg=enable-debugging-handlers=true --kubelet-arg=authentication-token-webhook=true --kubelet-arg=authorization-mode=Webhook
       notify:
         - restart_k3s
 
